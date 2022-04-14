@@ -1,0 +1,19 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+
+[packages]
+torch = "*"
+einops = "*"
+numpy = "*"
+torchvision = "*"
+matplotlib = "*"
+albumentations = "*"
+pandas = "*"
+seaborn = "*"
+
+[requires]
+python_version = "3.9"
