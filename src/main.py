@@ -1,3 +1,6 @@
+import yaml
+import time
+
 from model.mobilevit import *
 from preprocessing import train_valid_split
 from transform import *
@@ -6,12 +9,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from torchvision import datasets, transforms
+from torchvision import datasets
 
 def mobilevit_xxs():
     dims = [64, 80, 96]
     channels = [16, 16, 24, 24, 48, 48, 64, 64, 80, 80, 320]
-    return MobileViT((128, 128), dims, channels, num_classes=10, expansion=2)
+    return MobileViT((64, 64), dims, channels, num_classes=10, expansion=2)
 
 def mobilevit_xs():
     dims = [96, 120, 144]
@@ -24,14 +27,27 @@ def mobilevit_s():
     return MobileViT((64, 64), dims, channels, num_classes=10)
 
 if __name__ == "__main__":
+    '''
+    Read Configurations and Hyperparameters
+    '''
+    with open('./config.yaml') as file:
+        config = yaml.load(file, Loader=yaml.FullLoader)
 
-    '''
-    Experiment Configurations
-    '''
-    BATCH_SIZE = 128
-    EPOCH = 2
-    LEARNING_RATE = 0.001
-    MOMENTUM = 0.9
+    print(config)
+
+    ### Hyperparameters Configurations
+
+    BATCH_SIZE = config['batch_size']
+    N_EPOCH = config['epoch']
+    LEARNING_RATE = config['learning_rate']
+
+    ### Experiment Configurations
+    dataset = config['dataset']
+    training_set_allocation = config['train_allocation']
+    model_size = config['model_size']
+    train = config['training']
+    unpruned_path = config['unpruned_save_path']
+    test = config['test']
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
@@ -39,11 +55,13 @@ if __name__ == "__main__":
     '''
     Data Loading
     '''
-    cifar_data = datasets.CIFAR10('./data', train=True, download=True, transform=standard_transform)
-    cifar_test = datasets.CIFAR10('./data', train=False, download=True, transform=None)
+    if dataset == 'cifar10':
+        print('Cifar10 Dataset Selected')
+        cifar_data = datasets.CIFAR10('./data/cifar10', train=True, download=True, transform=standard_transform)
+        cifar_test = datasets.CIFAR10('./data/cifar10', train=False, download=True, transform=test_transform)
 
     # Split Training set into training and validation
-    train_set, valid_set = train_valid_split(cifar_data, 0.8)
+    train_set, valid_set = train_valid_split(cifar_data, training_set_allocation)
 
     # Create DataLoaders
     train_loader = torch.utils.data.DataLoader(train_set,
@@ -67,91 +85,114 @@ if __name__ == "__main__":
                                               shuffle = True
                                              )
     '''
-    Data Processing
-    '''
-
-    '''
     Model Instatiation - MobilViT
     '''
-    model = mobilevit_xxs()
-    print(model)
+    if model_size == 'xs': model = mobilevit_xs()
+    elif model_size == 'xxs': model = mobilevit_xxs()
+    else:
+        if model_size != 's':
+            print('Model Size does not exist - Default selected')
+            model_size = 's'
+        model = mobilevit_s()
+
+    model = model.to(device)    # Decide between GPU and CPU
+    print(f'MobileViT {model_size}: {count_parameters(model)} parameters')
 
     '''
     Training
     '''
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
-    optimizer = optim.AdamW(model.parameters(),
-                            lr = LEARNING_RATE)
+    if (train):
+        criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+        optimizer = optim.AdamW(model.parameters(),
+                                lr = LEARNING_RATE)
 
-    for epoch in range(EPOCH):
-        print(f"Epoch {epoch+1}")
-        train_loss = 0.0
-        train_correct = 0
-        train_total = 0
-        model.train()
+        ### Define Lists for visualizations
+        train_loss_plot = []
+        train_acc_plot = []
+        valid_loss_plot = []
+        valid_acc_plot = []
 
-        for i, data in enumerate(train_loader, 0):
-            inputs, labels = data
-            inputs, labels = inputs.to(device), labels.to(device)
+        print("Begin Training")
+        t1 = time.perf_counter()
+        for epoch in range(N_EPOCH):
+            print(f"Epoch {epoch+1}")
+            train_loss = 0.0
+            train_correct = 0
+            train_total = 0
+            model.train()
 
-            optimizer.zero_grad()
+            for i, data in enumerate(train_loader, 0):
+                inputs, labels = data
+                inputs, labels = inputs.to(device), labels.to(device)
 
-            outputs = model(inputs)
+                optimizer.zero_grad()
 
-            _, predicted = torch.max(outputs.data, 1)
+                outputs = model(inputs)
 
-            loss = criterion(outputs, labels)
+                _, predicted = torch.max(outputs.data, 1)
 
-            train_total += labels.size(0)
-            train_correct += (predicted == labels).sum().item()
-            loss.backward()
-            optimizer.step()
+                loss = criterion(outputs, labels)
 
-            train_loss += loss.item()
+                train_total += labels.size(0)
+                train_correct += (predicted == labels).sum().item()
+                loss.backward()
+                optimizer.step()
 
+                train_loss += loss.item()
 
-        valid_loss = 0.0
-        valid_correct = 0
-        valid_total = 0
-        model.eval()
-        for i, data in enumerate(valid_loader, 0):
-            inputs, labels = data
-            inputs, labels = inputs.to(device), labels.to(device)
+            valid_loss = 0.0
+            valid_correct = 0
+            valid_total = 0
+            model.eval()
+            for i, data in enumerate(valid_loader, 0):
+                inputs, labels = data
+                inputs, labels = inputs.to(device), labels.to(device)
 
-            outputs = model(inputs)
+                outputs = model(inputs)
 
-            _, predicted = torch.max(outputs.data, 1)
+                _, predicted = torch.max(outputs.data, 1)
 
-            loss = criterion(outputs, labels)
+                loss = criterion(outputs, labels)
 
-            valid_total += labels.size(0)
-            valid_correct += (predicted == labels).sum().item()
-            valid_loss += loss.item()
+                valid_total += labels.size(0)
+                valid_correct += (predicted == labels).sum().item()
+                valid_loss += loss.item()
 
-        print(f'Epoch {epoch + 1} \t Training Loss:   {(train_loss / len(train_loader)):.4f} \
-                                     Training Acc:    {(train_correct / train_total):.4f}')
-        print(f'Epoch {epoch + 1} \t Validation Loss: {(valid_loss / len(valid_loader)):.4f} \
-                                     Validation Acc:  {(valid_correct / valid_total):.4f}')
+            print(f'Epoch {epoch + 1} \t Training Loss:   {(train_loss / len(train_loader)):.4f} \
+                                        Training Acc:    {(train_correct / train_total):.4f}')
+            print(f'Epoch {epoch + 1} \t Validation Loss: {(valid_loss / len(valid_loader)):.4f} \
+                                        Validation Acc:  {(valid_correct / valid_total):.4f}')
     
-    
-    torch.save(model.state_dict(), "./saved_models/temp.pth")
+            train_loss_plot.append(round(train_loss / len(train_loader), 4))
+            train_acc_plot.append(round(train_correct / train_total, 4))
+            valid_loss_plot.append(round(valid_loss / len(valid_loader), 4))
+            valid_acc_plot.append(round(valid_correct / valid_total, 4))
+        
+        t2 = time.perf_counter()
+
+        print(f"Finished Training in {int(t2 - t1)} seconds")
+
+        torch.save(model.state_dict(), unpruned_path)
 
     '''
     Testing
     '''
-    model.load_state_dict(torch.load("./saved_models/temp.pth"))
-    
-    test_correct = 0
-    test_total = 0
+    if (test):
+        print("Begin Testing")
+        model.load_state_dict(torch.load(unpruned_path))
+        
+        test_correct = 0
+        test_total = 0
 
-    with torch.no_grad():
-        for index, data in enumerate(test_loader):
-            images, labels = data
+        with torch.no_grad():
+            for index, data in enumerate(test_loader):
+                images, labels = data
+                images, labels = images.to(device), labels.to(device)
 
-            outputs = model(images)
+                outputs = model(images)
 
-            _, predicted = torch.max(outputs.data, 1)
-            test_total += labels.size(0)
-            test_correct += (predicted == labels).sum().item()
+                _, predicted = torch.max(outputs.data, 1)
+                test_total += labels.size(0)
+                test_correct += (predicted == labels).sum().item()
 
-    print(f'Accuracy of the network on the {test_total} test images: {100 * test_correct // test_total} %')
+        print(f'Accuracy of the network on the {test_total} test images: {100 * test_correct // test_total} %')
