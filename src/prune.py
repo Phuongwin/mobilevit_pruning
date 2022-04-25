@@ -1,49 +1,57 @@
-from main import mobilevit_xxs
+# Generic Python Libraries
+import yaml
+
+# Necessary file imports
 from model.mobilevit import *
 from transform import *
 from visualize import *
 
+# Machine Learning Libraries
 import torch
 import torch.nn as nn
 from torch.nn.utils import prune
 from torchvision import datasets
 
-import copy
-
-def prune_model_ln_structured(model):
+'''
+Structured Pruning - Pruning a larger part of the network (channel or layer)
+    - filter pruning
+'''
+def prune_model_ln_structured(model, proportion = 0.5):
     for module in model.modules():
         if isinstance(module, nn.Conv2d):
-            prune.ln_structured(module, 'weight', 0.1, n=1, dim=1)
+            prune.ln_structured(module, 'weight', proportion, n=1, dim=1)
             prune.remove(module, 'weight')
         elif isinstance(module, nn.Linear):
-            prune.ln_structured(module, 'weight', 0.1, n=1, dim=1)
+            prune.ln_structured(module, 'weight', proportion, n=1, dim=1)
             prune.remove(module, 'weight')
     return model
 
-def prune_model_l1_unstructured(model):
+'''
+Unstructured Pruning - Find less salient connections and remove them
+    - weight pruning
+'''
+def prune_model_l1_unstructured(model, proportion = 0.5):
     for module in model.modules():
         if isinstance(module, nn.Conv2d):
-            prune.l1_unstructured(module, 'weight', 0.3)
+            prune.l1_unstructured(module, 'weight', proportion)
             prune.remove(module, 'weight')
         elif isinstance(module, nn.Linear):
             if module.bias is not None:
-                print("bias pruned")
-                print(module.bias)
-                prune.l1_unstructured(module, 'bias', 0.3)
+                prune.l1_unstructured(module, 'bias', proportion)
                 prune.remove(module, 'bias')
-                print(module.bias)
 
-            print("weight pruned")
-            prune.l1_unstructured(module, 'weight', 0.3)
+            prune.l1_unstructured(module, 'weight', proportion)
             prune.remove(module, 'weight')
-        else:
-            print("No Pruning")
 
     return model
 
-def prune_model_global_unstructured(model, proportion=.6):
+'''
+Global Unstructured Pruning - removing across the whole model
+    - Global Structured wouldn't make sense as a technique
+'''
+def prune_model_global_unstructured(model, proportion = .5):
     parameters_to_prune = []
-    for name, module in model.named_modules():
+    for module in model.modules():
         if isinstance(module, nn.Conv2d):
             parameters_to_prune.append((module, 'weight'))
         elif isinstance(module, nn.Linear):
@@ -78,6 +86,9 @@ def sparsity_calculation(model):
     
     return total_nonzeros
 
+'''
+Model Testing
+'''
 def test_model(model,test_loader):
     with torch.no_grad():
         test_correct = 0
@@ -87,22 +98,37 @@ def test_model(model,test_loader):
             images, labels = images.to(device), labels.to(device)
 
             outputs = model(images)
-            # ouputs_original = model(images)
+
             _, predicted = torch.max(outputs.data, 1)
             test_total += labels.size(0)
             test_correct += (predicted == labels).sum().item()
     return (100 * test_correct // test_total), test_total
 
+
 if __name__ == '__main__':
+    '''
+    Read Configurations and Hyperparameters
+    '''
+    with open('./config.yaml') as file:
+        config = yaml.load(file, Loader=yaml.FullLoader)
+
+    dataset_name = config['dataset'].lower()
+    model_size = config['model_size'].lower()
+    
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using Device: {device}")
+
+    unpruned_path = f"unpruned_{model_size}_{device}_weights_{dataset_name}.pth"
 
     '''
     Loading Test Set
     '''
-    cifar_test = datasets.CIFAR10('./data/cifar10', train=False, download=True, transform=test_transform)
+    if dataset_name == 'cifar10':
+        dataset_test = datasets.CIFAR10('./data/cifar10', train=False, download=True, transform=test_transform)
+    elif dataset_name == 'cifar100':
+        dataset_test = datasets.CIFAR100('./data/cifar100', train=False, download=True, transform=test_transform)
 
-    test_loader = torch.utils.data.DataLoader(cifar_test,
+    test_loader = torch.utils.data.DataLoader(dataset_test,
                                               batch_size = 128,
                                               num_workers = 2,
                                               drop_last = True,
@@ -112,29 +138,72 @@ if __name__ == '__main__':
     '''
     Model Instantiation
     '''
-    model = mobilevit_xxs()
+    if model_size == 'xs': 
+        model = mobilevit_xs()
+    elif model_size == 'xxs': 
+        model = mobilevit_xxs()
+    else:
+        if model_size != 's':
+            print('Model Size does not exist - Default selected')
+            model_size = 's'
+        model = mobilevit_s()
+
     model = model.to(device)
-    print(count_parameters(model))
+    print(f'MobileViT {model_size}: {count_parameters(model)} parameters')
 
-    model.load_state_dict(torch.load("./saved_models/unpruned_weights.pth"))
+    '''
+    Experimentation with all three pruning techniques
+    '''
+    global_nz_param_plot = []
+    global_acc_plot = []
+    print("Begin Global Pruning")
+    for i in range(5):
+        model.load_state_dict(torch.load("./saved_models/unpruned_weights.pth"))
+        model = prune_model_global_unstructured(model, i * 0.05)
+        non_zeros = sparsity_calculation(model)
+        global_nz_param_plot.append(non_zeros)
 
-    new_model = copy.deepcopy(model)
-    nz_param_plot = []
-    acc_plot = []
+        # torch.save(model.state_dict(), f"./saved_models/test/pruned_global_weights{i*5}.pth")
 
-    print("Begin Global Unstructured Pruning")
-    for i in range(20):
-        new_model.load_state_dict(torch.load("./saved_models/unpruned_weights.pth"))
-        new_model.to(device)
-        new_model = prune_model_global_unstructured(new_model, i * 0.05)
-        non_zeros = sparsity_calculation(new_model)
-        nz_param_plot.append(non_zeros)
+        accuracy, test_total = test_model(model, test_loader)
+        global_acc_plot.append(accuracy)
 
-        #torch.save(new_model.state_dict(), f"./saved_models/test/pruned_weights{i*5}.pth")
+        print(f'Global - Accuracy of pruned network {i*5}%: {accuracy}%')
 
-        accuracy, test_total = test_model(new_model, test_loader)
-        acc_plot.append(accuracy)
+    struct_nz_param_plot = []
+    struct_acc_plot = []
+    print("Begin Unstructured Pruning")
+    for i in range(5):
+        model.load_state_dict(torch.load("./saved_models/unpruned_weights.pth"))
+        model = prune_model_ln_structured(model, i * 0.05)
+        non_zeros = sparsity_calculation(model)
+        struct_nz_param_plot.append(non_zeros)
 
-        print(f'Accuracy of pruned network {i*5}%: {accuracy}%')
+        # torch.save(model.state_dict(), f"./saved_models/test/pruned_struct_weights{i*5}.pth")
 
-    plot_nonzero_accuracy(nz_param_plot, acc_plot)
+        accuracy, test_total = test_model(model, test_loader)
+        struct_acc_plot.append(accuracy)
+
+        print(f'Structured - Accuracy of pruned network {i*5}%: {accuracy}%')
+
+    unstruct_nz_param_plot = []
+    unstruct_acc_plot = []
+    print("Begin Unstructured Pruning")
+    for i in range(5):
+        model.load_state_dict(torch.load("./saved_models/unpruned_weights.pth"))
+        model = prune_model_l1_unstructured(model, i * 0.05)
+        non_zeros = sparsity_calculation(model)
+        unstruct_nz_param_plot.append(non_zeros)
+
+        # torch.save(model.state_dict(), f"./saved_models/test/pruned_unstruct_weights{i*5}.pth")
+
+        accuracy, test_total = test_model(model, test_loader)
+        unstruct_acc_plot.append(accuracy)
+
+        print(f'Unstructured - Accuracy of pruned network {i*5}%: {accuracy}%')
+
+    ### Plot visualization of all three pruning techiques on a single graph
+    plot_nonzero_accuracy(global_nz_param_plot, global_acc_plot,
+                          struct_nz_param_plot, struct_acc_plot,
+                          unstruct_nz_param_plot, unstruct_acc_plot,
+                         )
