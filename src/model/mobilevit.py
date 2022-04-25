@@ -217,5 +217,20 @@ class MobileViT(nn.Module):
         x = self.fc(x)
         return x
 
+def mobilevit_xxs():
+    dims = [64, 80, 96]
+    channels = [16, 16, 24, 24, 48, 48, 64, 64, 80, 80, 320]
+    return MobileViT((64, 64), dims, channels, num_classes=100, expansion=2)
+
+def mobilevit_xs():
+    dims = [96, 120, 144]
+    channels = [16, 32, 48, 48, 64, 64, 80, 80, 96, 96, 384]
+    return MobileViT((64, 64), dims, channels, num_classes=10)
+
+def mobilevit_s():
+    dims = [144, 192, 240]
+    channels = [16, 32, 64, 64, 96, 96, 128, 128, 160, 160, 640]
+    return MobileViT((64, 64), dims, channels, num_classes=10)
+
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
