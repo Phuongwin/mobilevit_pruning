@@ -34,10 +34,3 @@ def plot_train_validation(count, train_plot, valid_plot, model_size, dataset_nam
         plt.ylim([0, 100])
     plt.title(f'{model_size.upper()} MobileViT Training/Validation {type} - {dataset_name.upper()}')
     plt.savefig(f'visualizations/{model_size}_{dataset_name.lower()}_{type.lower()}.png', dpi=300)
-
-if __name__ == "__main__":
-    nz_count = [1019299, 969150, 919001, 868853, 818704, 768555, 718406, 668257, 618109, 567960]
-
-    acc = [60, 61, 60, 61, 60, 61, 60, 60, 60, 60]
-
-    plot_nonzero_accuracy(nz_count, acc)
