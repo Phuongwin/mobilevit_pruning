@@ -185,7 +185,7 @@ if __name__ == "__main__":
         test_total = 0
 
         with torch.no_grad():
-            for index, data in enumerate(test_loader):
+            for i, data in enumerate(test_loader):
                 images, labels = data
                 images, labels = images.to(device), labels.to(device)
 
