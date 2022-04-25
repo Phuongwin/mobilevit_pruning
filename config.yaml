@@ -6,4 +6,3 @@ train_allocation: 0.2
 epoch: 2
 batch_size: 128
 learning_rate: 0.001
-momentum: 0.9
