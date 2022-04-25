@@ -89,7 +89,7 @@ def sparsity_calculation(model):
 '''
 Model Testing
 '''
-def test_model(model,test_loader):
+def test_model(model, test_loader):
     with torch.no_grad():
         test_correct = 0
         test_total = 0
