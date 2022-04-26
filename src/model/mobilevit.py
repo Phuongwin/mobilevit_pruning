@@ -12,14 +12,12 @@ def conv_1x1_bn(inp, oup):
         nn.SiLU()
     )
 
-
 def conv_nxn_bn(inp, oup, kernal_size=3, stride=1):
     return nn.Sequential(
         nn.Conv2d(inp, oup, kernal_size, stride, 1, bias=False),
         nn.BatchNorm2d(oup),
         nn.SiLU()
     )
-
 
 class PreNorm(nn.Module):
     def __init__(self, dim, fn):
@@ -29,7 +27,6 @@ class PreNorm(nn.Module):
     
     def forward(self, x, **kwargs):
         return self.fn(self.norm(x), **kwargs)
-
 
 class FeedForward(nn.Module):
     def __init__(self, dim, hidden_dim, dropout=0.):
@@ -44,7 +41,6 @@ class FeedForward(nn.Module):
     
     def forward(self, x):
         return self.net(x)
-
 
 class Attention(nn.Module):
     def __init__(self, dim, heads=8, dim_head=64, dropout=0.):
@@ -73,7 +69,6 @@ class Attention(nn.Module):
         out = rearrange(out, 'b p h n d -> b p n (h d)')
         return self.to_out(out)
 
-
 class Transformer(nn.Module):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout=0.):
         super().__init__()
@@ -89,7 +84,6 @@ class Transformer(nn.Module):
             x = attn(x) + x
             x = ff(x) + x
         return x
-
 
 class MV2Block(nn.Module):
     def __init__(self, inp, oup, stride=1, expansion=4):
@@ -131,7 +125,6 @@ class MV2Block(nn.Module):
         else:
             return self.conv(x)
 
-
 class MobileViTBlock(nn.Module):
     def __init__(self, dim, depth, channel, kernel_size, patch_size, mlp_dim, dropout=0.):
         super().__init__()
@@ -163,7 +156,6 @@ class MobileViTBlock(nn.Module):
         x = torch.cat((x, y), 1)
         x = self.conv4(x)
         return x
-
 
 class MobileViT(nn.Module):
     def __init__(self, image_size, dims, channels, num_classes, expansion=4, kernel_size=3, patch_size=(2, 2)):

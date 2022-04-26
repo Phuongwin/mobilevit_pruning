@@ -1,14 +1,12 @@
 import seaborn as sns
 import torch
 
-from collections import Counter
 import matplotlib.pyplot as plt
 
 '''
 Collection of visualization functions
 '''
-
-def plot_nonzero_accuracy(global_param, global_acc, struct_param, struct_acc, unstruct_param, unstruct_acc,):
+def plot_nonzero_accuracy(global_param, global_acc, struct_param, struct_acc, unstruct_param, unstruct_acc, model_size):
     plt.figure(figsize=(10,10))
     plt.plot(global_param, global_acc, color='blue', label='Global Pruning')
     plt.plot(struct_param, struct_acc, color='magenta', label='Structured Pruning')
@@ -17,7 +15,7 @@ def plot_nonzero_accuracy(global_param, global_acc, struct_param, struct_acc, un
     plt.ylabel('Accuracy (%)')
     plt.legend()
     plt.ylim([0, 100])
-    plt.title(f'MobileViT Pruning')
+    plt.title(f'{model_size.upper()} MobileViT Pruning')
     plt.savefig(f'visualizations/pruning_techniques_param_acc.png', dpi=300)
 
 def plot_train_validation(count, train_plot, valid_plot, model_size, dataset_name, type):

@@ -157,7 +157,7 @@ if __name__ == '__main__':
     global_nz_param_plot = []
     global_acc_plot = []
     print("Begin Global Pruning")
-    for i in range(5):
+    for i in range(20):
         model.load_state_dict(torch.load("./saved_models/unpruned_weights.pth"))
         model = prune_model_global_unstructured(model, i * 0.05)
         non_zeros = sparsity_calculation(model)
@@ -173,7 +173,7 @@ if __name__ == '__main__':
     struct_nz_param_plot = []
     struct_acc_plot = []
     print("Begin Unstructured Pruning")
-    for i in range(5):
+    for i in range(20):
         model.load_state_dict(torch.load("./saved_models/unpruned_weights.pth"))
         model = prune_model_ln_structured(model, i * 0.05)
         non_zeros = sparsity_calculation(model)
@@ -189,7 +189,7 @@ if __name__ == '__main__':
     unstruct_nz_param_plot = []
     unstruct_acc_plot = []
     print("Begin Unstructured Pruning")
-    for i in range(5):
+    for i in range(20):
         model.load_state_dict(torch.load("./saved_models/unpruned_weights.pth"))
         model = prune_model_l1_unstructured(model, i * 0.05)
         non_zeros = sparsity_calculation(model)
@@ -206,4 +206,5 @@ if __name__ == '__main__':
     plot_nonzero_accuracy(global_nz_param_plot, global_acc_plot,
                           struct_nz_param_plot, struct_acc_plot,
                           unstruct_nz_param_plot, unstruct_acc_plot,
+                          model_size
                          )

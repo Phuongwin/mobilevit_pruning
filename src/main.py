@@ -108,6 +108,8 @@ if __name__ == "__main__":
         valid_acc_plot = []
 
         print("Begin Training")
+        best_accuracy = 0
+
         t1 = time.perf_counter()
         for epoch in range(N_EPOCH):
             print(f"Epoch {epoch+1}")
@@ -162,12 +164,18 @@ if __name__ == "__main__":
             train_acc_plot.append(round(100 * (train_correct / train_total), 4))
             valid_loss_plot.append(round(valid_loss / len(valid_loader), 4))
             valid_acc_plot.append(round(100 * (valid_correct / valid_total), 4))
-        
+
+            current_accuracy = 100 * (valid_correct / valid_total)
+            if current_accuracy > best_accuracy:
+                print("Saved better model")
+                best_accuracy = current_accuracy
+                torch.save(model.state_dict(), unpruned_path)
+            else:
+                print("Not saved")
+
         t2 = time.perf_counter()
 
         print(f"Finished Training in {int(t2 - t1)} seconds")
-
-        torch.save(model.state_dict(), unpruned_path)
 
         epoch_count = range(1, N_EPOCH + 1)
         plot_train_validation(epoch_count, train_acc_plot, valid_acc_plot, model_size, dataset_name ,'Accuracy')
