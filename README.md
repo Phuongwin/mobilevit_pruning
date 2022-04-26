@@ -1,11 +1,11 @@
 # Pruning MobileViT Architecture
 
-Purpose: Small scale experiment involving Apple's MobileVit Architecture with common pruning techniques typically used in Convolutional Neural Networks. The experiment focuses on analyzing whether the MobileViT architecture will benefit further from compression of weights. 
+**Purpose:** Small scale experiment involving Apple's MobileVit Architecture with common pruning techniques typically used in Convolutional Neural Networks. The experiment focuses on analyzing whether the MobileViT architecture will benefit further from compression of weights. 
 
 This repository satisfies the requirements of the final project for the course 525.733 Deep Learning for Computer Vision at Johns Hopkins University.
 
 # Building
-This repository uses pipenv as a virutal environment to run the source code. To create the environment, perform the following:
+This repository uses pipenv as a virtual environment to run the source code. To create the environment, perform the following:
 
 ```
 cd mobilevit_pruning

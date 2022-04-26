@@ -202,7 +202,7 @@ if __name__ == '__main__':
 
         print(f'Unstructured - Accuracy of pruned network {i*5}%: {accuracy}%')
 
-    ### Plot visualization of all three pruning techiques on a single graph
+    ### Plot visualization of all three pruning techniques on a single graph
     plot_nonzero_accuracy(global_nz_param_plot, global_acc_plot,
                           struct_nz_param_plot, struct_acc_plot,
                           unstruct_nz_param_plot, unstruct_acc_plot,

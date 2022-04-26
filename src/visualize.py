@@ -16,7 +16,7 @@ def plot_nonzero_accuracy(global_param, global_acc, struct_param, struct_acc, un
     plt.legend()
     plt.ylim([0, 100])
     plt.title(f'{model_size.upper()} MobileViT Pruning')
-    plt.savefig(f'visualizations/pruning_techniques_param_acc.png', dpi=300)
+    plt.savefig(f'visualizations/pruning_{model_size}_param_acc.png', dpi=300)
 
 def plot_train_validation(count, train_plot, valid_plot, model_size, dataset_name, type):
     plt.figure(figsize=(10,10))
